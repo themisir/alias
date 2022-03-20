@@ -3,6 +3,7 @@ package alias
 import (
 	"context"
 	"math"
+	"strings"
 
 	"github.com/coredns/coredns/plugin"
 
@@ -41,6 +42,16 @@ func min(a, b uint32) uint32 {
 	return b
 }
 
+func cnameMatches(rr dns.RR, name string) bool {
+	// type must be CNAME
+	if rr.Header().Rrtype != dns.TypeCNAME {
+		return false
+	}
+
+	// check if record name equals to or is subdomain of given name
+	return rr.Header().Name == name || strings.HasSuffix(rr.Header().Name, "."+name)
+}
+
 // WriteMsg records the status code and calls the
 // underlying ResponseWriter's WriteMsg method.
 func (r *ResponseModifier) WriteMsg(res *dns.Msg) error {
@@ -59,7 +70,7 @@ func (r *ResponseModifier) WriteMsg(res *dns.Msg) error {
 	)
 	for i := 0; i < len(res.Answer); {
 		rr := res.Answer[i]
-		if rr.Header().Rrtype == dns.TypeCNAME && rr.Header().Name == cname {
+		if cnameMatches(rr, cname) {
 			cname = rr.(*dns.CNAME).Target
 			ttl = min(ttl, rr.(*dns.CNAME).Header().Ttl)
 			// Remove the CNAME record
