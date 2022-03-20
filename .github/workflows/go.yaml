@@ -7,10 +7,11 @@ on:
     branches: [master]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
 
       - name: Set up Go
         uses: actions/setup-go@v2
@@ -18,16 +19,29 @@ jobs:
           go-version: 1.17
 
       - name: Test
-        run: |
-          cd coredns
-          go test
+        working-directory: coredns
+        run: go test
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        build-target: ["windows", "darwin", "linux-amd64", "linux-arm64"]
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
 
       - name: Build
-        run: |
-          cd coredns
-          make build
+        working-directory: coredns
+        run: make clean build-${{ matrix.build-target }}
 
-      - name: Upload Build Artifact
+      - name: Upload
         uses: actions/upload-artifact@v3.0.0
         with:
           path: coredns/build/*
